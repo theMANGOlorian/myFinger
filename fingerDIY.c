@@ -49,7 +49,7 @@ void printUserInfo(struct UserInfo *userInfo) {
     printf("Idle ore: %d\n", userInfo->idleOre);
     printf("Idle minuti: %d\n", userInfo->idleMin);
 }
-
+/*Print versione lunga (-l)*/
 void longFinger(struct UserInfo *user){
 	printf("Login    : %-30s     Name      : %s\n",user->utente, user->nomeCompleto);
 	printf("Directory: %-30s     Shell     : %s\n",user->directory, user->shell);
@@ -64,11 +64,24 @@ void longFinger(struct UserInfo *user){
 	}
 
 }
-
+/*print versione corta (-s)*/
 void shortFinger(struct UserInfo *user){
-	printf("%-10s %-10s %-5s %d:%-5d %-10.*s %s\n", 
-		user->utente, user->nomeCompleto, user->tty,user->idleOre,user->idleMin,(int)strcspn(user->lastLogin,"\n"),user->lastLogin,user->numeroStanza);
+	printf("%s\t", user->utente);
+	printf("%s\t", user->nomeCompleto);
+	if (user->tty == NULL){
+		printf("*\t");
+		printf("*\t");
+		printf("No Logins\t");
+	}
+	else{
+		printf("%s\t", user->tty);	
+		printf("%d:%d\t", user->idleOre,user->idleMin);
+		printf("%.*s\t", (int)strcspn(user->lastLogin, "\n"),user->lastLogin);
+	}	
+	printf("%s\t", user->telefonoLavoro);
+	printf("%s\n", user->numeroStanza);
 }
+
 
 //gestione degli errori
 void getErrors(int errorCode){
@@ -187,28 +200,37 @@ void getOptions(int argc, char *argv[], struct options *opts){
 /*confronto tralasciando il case sensitive*/
 
 int strCaseSense(char *gecos, const char *username) {
-    int len_gecos = strlen(gecos);
-    int len_username = strlen(username);
-    int i, j;
+	
+	char *nome = NULL;
+	char *cognome = NULL;
+	//prende il primo campo della stringa gecos (ovvero il nome e il cognome)
+    char *token = strtok(gecos, ",");
+	if (token == NULL)
+	    return 0;
 
-    // Ciclo su tutte le posizioni di gecos
-    for (i = 0; i <= len_gecos - len_username; i++) {
-        // Confronta le sottostringhe di lunghezza len_username a partire da gecos[i]
-        for (j = 0; j < len_username; j++) {
-            // Confronta i caratteri ignorando le differenze tra maiuscole e minuscole
-            if (tolower(gecos[i + j]) != tolower(username[j])) {
-                break; // I caratteri non corrispondono, esce dal ciclo interno
-            }
-        }
-        // Se il ciclo interno è stato eseguito completamente senza interruzioni, significa che la corrispondenza è stata trovata
-        if (j == len_username) {
-            return 1; // Restituisci 1 per indicare che la corrispondenza è stata trovata
-        }
+	// Trova la posizione dello spazio nella stringa token
+    char *space_pos = strchr(token, ' ');
+    if (space_pos != NULL) {
+        // Se c'è uno spazio, separa nome e cognome
+        *space_pos = '\0'; // Termina il nome con un null byte
+        nome = token;
+        cognome = space_pos + 1;
+    } else {
+        // Se non c'è spazio, hai solo il nome o il cognome
+        nome = token;
+        cognome = token;
     }
 
-    return 0; // Nessuna corrispondenza trovata
-}
+    //c'è una corrispondeza?
+    if (strcasecmp(nome,username)== 0 || strcasecmp(cognome,username) == 0) {
+    	return 1;
+    }
 
+
+
+    // Nessuna corrispondenza trovata
+    return 0;
+}
 
 /*recupera i file .plan, .project etc..*/
 void checkPlanningFile(char *username,char *filename){
@@ -432,7 +454,7 @@ int main(int argc, char *argv[]) {
 	//mostra opzioni selezionata
 	//printf("Options:\nl: %d\nm: %d\np: %d\ns: %d\n", opts.opt_l,opts.opt_m,opts.opt_p,opts.opt_s);
 
-	
+
 	fingerDIY(argc, argv, &opts);
 
 
