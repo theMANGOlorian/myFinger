@@ -11,6 +11,7 @@
 #include <sys/stat.h> //uso stat()
 #include <ctype.h> //per usare strcasestr()
 
+int headerShortPrint = 0; //false
 
 struct options{
 	/*struttura per le opzione del comando finger 0->False 1->True */
@@ -35,20 +36,6 @@ struct UserInfo {
 	int idleMin;
 };
 
-void printUserInfo(struct UserInfo *userInfo) {
-
-    printf("Utente: %s\n", userInfo->utente);
-    printf("Directory: %s\n", userInfo->directory);
-    printf("Shell: %s\n", userInfo->shell);
-    printf("Nome completo: %s\n", userInfo->nomeCompleto);
-    printf("Numero stanza: %s\n", userInfo->numeroStanza);
-    printf("Telefono lavoro: %s\n", userInfo->telefonoLavoro);
-    printf("Telefono casa: %s\n", userInfo->telefonoCasa);
-    printf("TTY: %s\n", userInfo->tty);
-    printf("Ultimo accesso: %s\n", userInfo->lastLogin);
-    printf("Idle ore: %d\n", userInfo->idleOre);
-    printf("Idle minuti: %d\n", userInfo->idleMin);
-}
 /*Print versione lunga (-l)*/
 void longFinger(struct UserInfo *user){
 	printf("Login    : %-30s     Name      : %s\n",user->utente, user->nomeCompleto);
@@ -66,6 +53,12 @@ void longFinger(struct UserInfo *user){
 }
 /*print versione corta (-s)*/
 void shortFinger(struct UserInfo *user){
+
+	if (headerShortPrint == 0){
+		headerShortPrint = 1;
+		printf("Login\t Name\t\t Tty\t idle\t Login Time\t\t Office Phone\t Office\n");
+	} 
+
 	printf("%s\t", user->utente);
 	printf("%s\t", user->nomeCompleto);
 	if (user->tty == NULL){
@@ -78,7 +71,7 @@ void shortFinger(struct UserInfo *user){
 		printf("%d:%d\t", user->idleOre,user->idleMin);
 		printf("%.*s\t", (int)strcspn(user->lastLogin, "\n"),user->lastLogin);
 	}	
-	printf("%s\t", user->telefonoLavoro);
+	printf("%s ", user->telefonoLavoro);
 	printf("%s\n", user->numeroStanza);
 }
 
@@ -199,10 +192,11 @@ void getOptions(int argc, char *argv[], struct options *opts){
 
 /*confronto tralasciando il case sensitive*/
 
-int strCaseSense(char *gecos, const char *username) {
-	
+int strCaseSense(const char *gecosOriginal, const char *username) {
+	char *gecos = strdup(gecosOriginal);
 	char *nome = NULL;
 	char *cognome = NULL;
+
 	//prende il primo campo della stringa gecos (ovvero il nome e il cognome)
     char *token = strtok(gecos, ",");
 	if (token == NULL)
@@ -222,7 +216,7 @@ int strCaseSense(char *gecos, const char *username) {
     }
 
     //c'è una corrispondeza?
-    if (strcasecmp(nome,username)== 0 || strcasecmp(cognome,username) == 0) {
+    if (strcasecmp(nome,username) == 0 || strcasecmp(cognome,username) == 0) {
     	return 1;
     }
 
