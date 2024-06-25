@@ -8,10 +8,10 @@
 #include <unistd.h>
 #include <time.h>
 #include <pwd.h> 
-#include <stdbool.h> //per usare il tipo bool
-#include <sys/stat.h> //uso stat()
+#include <stdbool.h>
+#include <sys/stat.h> 
 
-int headerShortPrint = 0; //false
+int headerShortPrint = 0; // 0 -> no stampata, 1 -> stampata
 
 struct options{
 	/*struttura per le opzione del comando finger 0->False 1->True */
@@ -55,6 +55,7 @@ void longFinger(struct UserInfo *user){
 void shortFinger(struct UserInfo *user){
 
 	if (headerShortPrint == 0){
+		// Stampa header per l'output ridotto
 		headerShortPrint = 1;
 		printf("Login\t Name\t\t Tty\t idle\t Login Time\t\t Office Phone\t Office\n");
 	} 
@@ -79,45 +80,47 @@ void shortFinger(struct UserInfo *user){
 /*formatta il numero di telefono come descritto nella documentazione del comando finger*/
 char* phoneFormat(char *number){
 
-	int len = strlen(number);
+	int len = strlen(number); // ottiene la lunghezza del numero di telefono 
 
+	// controlla se la stringa contiene solo caratteri numerici
 	for (int i=0; number[i] != '\0';i++){
 		if (number[i] < '0' || number[i] > '9'){
 			return number;
 		}
 	}
 
-	char *p;
+	 //buffer per il numero di telefono
 	char pbuf[15];
 	memset(pbuf, '\0', sizeof(pbuf));
+	char *p = pbuf;
 
-	p = pbuf;
 
+	// switch sulla lunghezza del numero di telefono
 	switch (len) {
 		case 11:
-			*p++ = '+';
-			*p++ = *number++;
-			*p++ = '-';
+			*p++ = '+'; // Aggiunge il prefisso internazionale
+			*p++ = *number++; // Aggiunge il primo numero
+			*p++ = '-'; // Aggiunge il trattino
 		case 10:
+			*p++ = *number++; // Aggiunge i primi tre numeri
 			*p++ = *number++;
 			*p++ = *number++;
-			*p++ = *number++;
-			*p++ = '-';
+			*p++ = '-'; // Aggiunge il trattino
 		case 7:
-			*p++ = *number++;
+			*p++ = *number++; // Aggiunge i successivi tre numeri
 			*p++ = *number++;
 			*p++ = *number++;
 			break;
 		case 5:
 		case 4:
-			*p++ = 'x';
-			*p++ = *number++;
+			*p++ = 'x'; // Aggiunge 'x'
+			*p++ = *number++; // Aggiunge il primo numero
 			break;
 		default:
-			return number;
+			return number; // Ritorna l'input originale se la lunghezza non è gestita
 
 	}
-
+	// Se la lunghezza non è 4, aggiunge un trattino e altri tre numeri
 	if (len != 4) {
 		*p++ = '-';
 		*p++ = *number++;
@@ -125,10 +128,10 @@ char* phoneFormat(char *number){
 	*p++ = *number++;
 	*p++ = *number++;
 	*p++ = *number++;
-	*p = '\0';
+	*p = '\0'; // Termina la stringa con il carattere nullo
 
+	// Ritorna una copia della stringa formattata
 	return strdup(pbuf);
-
 
 }
 
@@ -136,13 +139,15 @@ char* phoneFormat(char *number){
 int getOptions(int argc, char *argv[], struct options *opts){
 
 
-	int numberOfUsers = 0;
+	int numberOfUsers = 0; // contatore degli utenti
 
+	// For che attraversa tutti gli argomenti della linea di comando
 	for (int i=1;i<argc;i++){
-	
+		
+		// Controlla se l'argomento è un opzione (inizia con '-')
 		if (argv[i][0] == '-'){
 		
-			/*quali opzioni si sta utilizzando?*/
+			// for per indentificare se l'opzione richiesta
 			for (int j=1;argv[i][j]!='\0';j++){
 			
 				if(argv[i][j]=='l'){
@@ -158,6 +163,7 @@ int getOptions(int argc, char *argv[], struct options *opts){
 					opts->opt_s = 1;
 				}
 				if(argv[i][j]!='l' && argv[i][j]!='m' && argv[i][j]!='p' && argv[i][j]!='s' ){
+					// se l'opzione non è riconosciuta, stampa un messaggio di errore
 					printf("comando non riconosciuto\nfinger [-lmps] [nomeUtente]\n");
 					exit(1);
 				}
@@ -165,30 +171,35 @@ int getOptions(int argc, char *argv[], struct options *opts){
 			
 		}
 		else{
+			// Conta il numero di utenti
 			numberOfUsers++;
 		}
 				
 	}
+	// ritorna il numero di utenti trovati negli argomenti
 	return numberOfUsers;
 }
 
-/*confronto tralasciando il case sensitive*/
 
+// Confronta il nome e il cognome con un username ignorando la differenza tra maiuscole e minuscole
 int strCaseSense(const char *gecosOriginal, const char *username) {
+	// Duplica la stringa gecosOriginal per modificarla
 	char *gecos = strdup(gecosOriginal);
 	char *nome = NULL;
 	char *cognome = NULL;
 
 	//prende il primo campo della stringa gecos (ovvero il nome e il cognome)
     char *token = strtok(gecos, ",");
-	if (token == NULL)
+	if (token == NULL){
+		free(gecos); //libera la memoria allocata prima di uscire
 	    return 0;
+	}
 
 	// Trova la posizione dello spazio nella stringa token
     char *space_pos = strchr(token, ' ');
     if (space_pos != NULL) {
         // Se c'è uno spazio, separa nome e cognome
-        *space_pos = '\0'; // Termina il nome con un null byte
+        *space_pos = '\0';
         nome = token;
         cognome = space_pos + 1;
     } else {
@@ -197,62 +208,81 @@ int strCaseSense(const char *gecosOriginal, const char *username) {
         cognome = token;
     }
 
-    //c'è una corrispondeza?
+    //se c'è corrispondenza ritorna 1
     if (strcasecmp(nome,username) == 0 || strcasecmp(cognome,username) == 0) {
+    	free(gecos);
     	return 1;
     }
 
-
-
-    // Nessuna corrispondenza trovata
+	// Nessuna corrispondenza trovata, ritorna 0
+    free(gecos);    
     return 0;
 }
 
-/*recupera i file .plan, .project etc..*/
+// Funzione per controllare e leggere il file di pianificazione dell'utente
 void checkPlanningFile(char *username,char *filename){
 
-	char *filepath;
-	filepath = malloc((strlen("/home/")+strlen(username) + strlen(filename) + 2 ) * sizeof(char));
+	// Alloca memoria per il percorso completo del file
+	char *filepath = malloc((strlen("/home/")+strlen(username) + strlen(filename) + 2 ) * sizeof(char));	
+	if (filepath == NULL){
+		perror("[-] malloc:checkPlanningFile()\n");
+		exit(1);
+	}
+	// Costruisce il percorso del file
 	sprintf(filepath,"/home/%s/%s",username,filename);
 
+	// Controlla se il file esiste
 	if (access(filepath,F_OK) != -1) {
-
+		// Prova ad aprire il file in lettura
 		FILE *file = fopen(filepath,"r");
 		if (file == NULL){
-			printf("Impossibile aprire il file.\n");
-			free(filepath);
+			// Gestisce l'errore di apertura del file
+			printf("[-] Impossibile aprire il file.\n");
+			free(filepath); // Libera la memoria allocata
 		}
-		printf("%s:\n",filename);
+		printf("%s:\n",filename); // Stampa il nome del file
+		
+		// Legge e stampa il contenuto del file carattere per carattere
 		char c;
-		while ((c = fgetc(file)) != EOF){ //EOF indica la fine del file (libreria C)
+		while ((c = fgetc(file)) != EOF){
 			putchar(c);
 		}
 		fclose(file);
-
-
 	}else{
+		// Il file non esiste
 		printf("No %s\n", filename);
 	}
 
-	free(filepath);
+	free(filepath); //libera memoria allocata
 
 }
 
-/*recupera le informazioni della mailbox*/
+// Funzione per verificare la casella di posta dell'utente
 void mailBox(char *username){
 
 	struct stat file_stat;
 
+	// Alloca memoria per il percorso del file di posta
 	char *filepath = malloc((strlen("/var/mail/") + strlen(username) + 1) * sizeof(char));
+	if (filepath == NULL){
+		perror("[-] malloc:mailBox()\n");
+		exit(1);
+	}
+
+	// Construisce il percorso del file di posta
 	sprintf(filepath, "/var/mail/%s", username);
 
-	// Ottenere le informazioni sul file
+	/* Ottenere le informazioni sul file.
+
+		Se la data di ultima lettura (st_atime) è precedente alla data di ultima modifica (st_mtime), viene stampato un messaggio indicante che ci sono nuove mail non lette.
+		Altrimenti, viene stampata la data di ultima lettura della casella di posta.
+	*/
     if ( stat(filepath, &file_stat) == 0 ) {
         // Verifica se il file esiste
         if (file_stat.st_size == 0) {
             printf("No mail.\n");
         } else {
-
+        	// Formatta la data di ultima lettura della mailbox
         	char last_read_str[30];
         	time_t last_read_time = file_stat.st_atime;
         	strftime(last_read_str, sizeof(last_read_str), "%a %b %d %H:%M:%S %Y", localtime(&last_read_time));
@@ -267,7 +297,7 @@ void mailBox(char *username){
                 printf("New mail received %s\n	Unread since %s\n", last_recv_str, last_read_str);
 
             } else {
-                // Formatta la data di ultima lettura della mailbox
+                // data di ultima lettura della mailbox
                 printf("Mail last read %s\n", last_read_str);
             }
         }
@@ -275,6 +305,8 @@ void mailBox(char *username){
         // File non trovato
         printf("No mail.\n");
     }
+
+    free(filepath);
 }
 /*Inizializza tutti i campi della struttura UserInfo a NULL o a valori vuoti*/
 void initializeUserInfo(struct UserInfo *user) {
@@ -299,48 +331,46 @@ void initializeUserInfo(struct UserInfo *user) {
 void fingerDIY(int argc, char *argv[], struct options *opts){
 	struct passwd *pw;
 
-	//printf("flag 1\n");
-
+	// Apre il file passwd per la scansione
 	setpwent();
-	/*while per esplorare tutte le entry del file passwd*/
+
+	// Ciclo per esplorare tutte le entry del file passwd
 	while ((pw = getpwent()) != NULL){
 		
-		//printf("flag 2\n");
-
 		struct UserInfo *user = malloc(sizeof(struct UserInfo));
+		if (user == NULL){
+			perror("[-] malloc:fingerDIY()\n");
+			exit(1);
+		}
+
 		// Inizializza tutti i campi della struttura UserInfo a NULL o a valori vuoti
-        	initializeUserInfo(user);
+        initializeUserInfo(user);
 
 		bool userFound = false;
-
-		char *token;
+		
 		char gecos[strlen(pw->pw_gecos) + 1];
 		strcpy(gecos, pw->pw_gecos);
 
-		//printf("flag 3\n");
 
-		/*for per scorrere il vettore degli argomenti
-		(N.B. parte da i=1 perche nella posizione 0 ci sarà il nome del file)*/
+		// Ciclo per scorrere il vettore degli argomenti
 		for (int i=0;i<argc && userFound == false;i++){
 			
-			//printf("flag 4\n");
-			/*entra nella if se il nome utente (o nome/cognome se l'opzione -m è 0) è tra gli argomenti*/
-			if (argv[i][0] != '-' && ((strcmp(pw->pw_name, argv[i]) == 0) || (strCaseSense(gecos, argv[i]) == 1 && opts->opt_m == 0))){
-
-				//printf("flag 5\n");
-				//se è entrato nella if allora abbiamo trovato un utente
-				userFound = true;
+			// Verifica se il nome utente (o nome/cognome se l'opzione -m è 0) è tra gli argomenti
+			if (argv[i][0] != '-' && ((strcmp(pw->pw_name, argv[i]) == 0) || (strCaseSense(gecos, argv[i]) == 1 && opts->opt_m == 0))){	
+				userFound = true; //se è entrato nella if allora abbiamo trovato un utente
  			}
 
 		}
 
-		/*recupera tutte le informazioni necessarie nel file passwd*/
+		// Recupera tutte le informazioni necessarie dal file passwd se l'utente è stato trovato
 		if (userFound) {
 			
 			user->utente = pw->pw_name;
 			user->directory = pw->pw_dir;
 			user->shell = pw->pw_shell;
 
+			// Tokenizza il campo gecos per estrarre nome, stanza, telefoni
+			char *token;
 			token = strtok(pw->pw_gecos,",");
 
 			if (token != NULL){
@@ -360,15 +390,12 @@ void fingerDIY(int argc, char *argv[], struct options *opts){
 				token = strtok(NULL,",");
 			}
 
-			//recupera tutte le informazioni necessarie nel file utmp
-
+			//Recupera tutte le informazioni necessarie nel file utmp
 			struct utmp *ut;
-
 			time_t current_time = time(NULL); // Ottiene il tempo corrente in secondi
 			char aux[UT_NAMESIZE + 1]; // UT_NAMESIZE è definito in <utmp.h> come la lunghezza massima di un nome utente
 
 			setutent(); // Apre il file utmp per la scansione
-
 			
 			while ((ut = getutent()) != NULL) { // Scansione del file utmp
 
@@ -378,13 +405,12 @@ void fingerDIY(int argc, char *argv[], struct options *opts){
 			    if (strcmp(aux, pw->pw_name) == 0) { // Se il nome utente corrente corrisponde a quello cercato
 			        user->tty = ut->ut_line; // Assegna il terminale associato all'utente
 			        time_t ltime = ut->ut_time; // Ottiene il tempo dell'ultimo accesso dell'utente
-
 			        user->lastLogin = ctime(&ltime); // Converte il tempo dell'ultimo accesso in una stringa leggibile
+			        
+			        // Calcola il tempo di attivatà dell'utente
 			        time_t idle_seconds = current_time - ut->ut_time; // Calcola il tempo trascorso dall'ultimo accesso in secondi
-			        int idle_hours = idle_seconds / 3600; // Calcola il numero di ore di inattività
-			        int idle_minutes = (idle_seconds % 3600) / 60; // Calcola il numero di minuti di inattività
-			        user->idleOre = idle_hours; // Assegna il numero di ore di inattività all'utente
-			        user->idleMin = idle_minutes; // Assegna il numero di minuti di inattività all'utente
+			        user->idleOre = idle_seconds / 3600; // Calcola il numero di ore di inattività
+			        user->idleMin = (idle_seconds % 3600) / 60; // Calcola il numero di minuti di inattività
 
 			        break; // Poiché abbiamo trovato il nome utente cercato, possiamo uscire dal ciclo
 			    }
@@ -392,7 +418,7 @@ void fingerDIY(int argc, char *argv[], struct options *opts){
 
 			endutent(); // Chiude il file utmp dopo la scansione
 
-
+			// Determina quale funzione chiamare in base alle opzioni specificate
 			if (opts->opt_l == 1){
 				longFinger(user);
 			}
@@ -400,12 +426,14 @@ void fingerDIY(int argc, char *argv[], struct options *opts){
 				shortFinger(user);
 			}
 			else{
-				longFinger(user);
+				longFinger(user); // Chiamata di default
 			}
 			
+			// Esegue ulteriori controlli solo se opt_s è 0
 			if (opts->opt_s == 0){
-				mailBox(user->utente);
+				mailBox(user->utente); // Verifica la casella di posta dell'utente
 				if (opts->opt_p == 0) {
+					// Verifica la presenza di file di pianificazione specifici
 					checkPlanningFile(user->utente,".plan");
 					checkPlanningFile(user->utente,".project");
 					checkPlanningFile(user->utente,".pgpkey");
@@ -415,32 +443,34 @@ void fingerDIY(int argc, char *argv[], struct options *opts){
 			}
 		}
 
-		free(user);
+		free(user); //libera memoria
 		//fine while	
 	}
-	endpwent();
+	endpwent(); // Chiude il file passwd dopo la scansione
 }
 
+// Funzione per ottenere gli utenti attualmente loggati
 char** get_logged_in_users(int *user_count) {
     struct utmp *n;
-    setutent();
-    n = getutent();
+    setutent(); // Apre il file utmp e imposta la posizione all'inizio
+    n = getutent(); //Legge la prima voce dal file utmp
 
     char **users = NULL;
     int count = 0;
 
     while (n) {
+    	// Controlla se l'utente è in uno stato di processo utente
         if (n->ut_type == USER_PROCESS) {
-            users = realloc(users, sizeof(char*) * (count + 1));
-            users[count] = strndup(n->ut_user, UT_NAMESIZE); // Utilizziamo strndup
-            count++;
+            users = realloc(users, sizeof(char*) * (count + 1));// Rialloca la memoria per inserire un altro utente
+            users[count] = strndup(n->ut_user, UT_NAMESIZE); // Alloca e copia il nome utente
+            count++; // Incrementa il contatore degli utenti trovati
         }
-        n = getutent();
+        n = getutent(); // Ottiene la prossima entry nel file utmp
     }
-    endutent();
+    endutent(); // Chiude il file utmp
 
-    *user_count = count;
-    return users;
+    *user_count = count; // Assegna al puntatore user_count il numero totale di utenti trovati
+    return users; // Restituisce il gli utenti loggati nel sistema
 }
 
 int main(int argc, char *argv[]) {
