@@ -1,5 +1,6 @@
 /*finger.c reforge*/
-//#include "finger.h"
+
+//#include "fingerDIY.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -9,7 +10,6 @@
 #include <pwd.h> 
 #include <stdbool.h> //per usare il tipo bool
 #include <sys/stat.h> //uso stat()
-#include <ctype.h> //per usare strcasestr()
 
 int headerShortPrint = 0; //false
 
@@ -76,26 +76,6 @@ void shortFinger(struct UserInfo *user){
 }
 
 
-//gestione degli errori
-void getErrors(int errorCode){
-	switch(errorCode){
-		case 1:
-			printf("comando non riconosciuto\nfinger [-lmps] [nomeUtente]\n");
-			break;
-		case 2:
-			printf("Errore nell'apertura del file\n");
-			break;
-		case 3:
-			printf("Errore nell'allocazione della memoria\n");
-			break;
-		case 4:
-			printf("finger: Utente non trovato\n");
-			
-	}
-	exit(EXIT_FAILURE);
-	
-}
-
 /*formatta il numero di telefono come descritto nella documentazione del comando finger*/
 char* phoneFormat(char *number){
 
@@ -153,7 +133,7 @@ char* phoneFormat(char *number){
 }
 
 //andrà alla ricerca delle opzione (argomenti che iniziano con il carattere '-')
-void getOptions(int argc, char *argv[], struct options *opts){
+int getOptions(int argc, char *argv[], struct options *opts){
 
 
 	int numberOfUsers = 0;
@@ -178,7 +158,8 @@ void getOptions(int argc, char *argv[], struct options *opts){
 					opts->opt_s = 1;
 				}
 				if(argv[i][j]!='l' && argv[i][j]!='m' && argv[i][j]!='p' && argv[i][j]!='s' ){
-					getErrors(1); //comando non riconosciuto
+					printf("comando non riconosciuto\nfinger [-lmps] [nomeUtente]\n");
+					exit(1);
 				}
 			}
 			
@@ -188,6 +169,7 @@ void getOptions(int argc, char *argv[], struct options *opts){
 		}
 				
 	}
+	return numberOfUsers;
 }
 
 /*confronto tralasciando il case sensitive*/
@@ -317,13 +299,17 @@ void initializeUserInfo(struct UserInfo *user) {
 void fingerDIY(int argc, char *argv[], struct options *opts){
 	struct passwd *pw;
 
+	//printf("flag 1\n");
+
 	setpwent();
 	/*while per esplorare tutte le entry del file passwd*/
 	while ((pw = getpwent()) != NULL){
 		
+		//printf("flag 2\n");
+
 		struct UserInfo *user = malloc(sizeof(struct UserInfo));
 		// Inizializza tutti i campi della struttura UserInfo a NULL o a valori vuoti
-        initializeUserInfo(user);
+        	initializeUserInfo(user);
 
 		bool userFound = false;
 
@@ -331,14 +317,17 @@ void fingerDIY(int argc, char *argv[], struct options *opts){
 		char gecos[strlen(pw->pw_gecos) + 1];
 		strcpy(gecos, pw->pw_gecos);
 
+		//printf("flag 3\n");
 
 		/*for per scorrere il vettore degli argomenti
 		(N.B. parte da i=1 perche nella posizione 0 ci sarà il nome del file)*/
-		for (int i=1;i<argc && userFound == false;i++){
+		for (int i=0;i<argc && userFound == false;i++){
 			
+			//printf("flag 4\n");
 			/*entra nella if se il nome utente (o nome/cognome se l'opzione -m è 0) è tra gli argomenti*/
 			if (argv[i][0] != '-' && ((strcmp(pw->pw_name, argv[i]) == 0) || (strCaseSense(gecos, argv[i]) == 1 && opts->opt_m == 0))){
 
+				//printf("flag 5\n");
 				//se è entrato nella if allora abbiamo trovato un utente
 				userFound = true;
  			}
@@ -432,6 +421,28 @@ void fingerDIY(int argc, char *argv[], struct options *opts){
 	endpwent();
 }
 
+char** get_logged_in_users(int *user_count) {
+    struct utmp *n;
+    setutent();
+    n = getutent();
+
+    char **users = NULL;
+    int count = 0;
+
+    while (n) {
+        if (n->ut_type == USER_PROCESS) {
+            users = realloc(users, sizeof(char*) * (count + 1));
+            users[count] = strndup(n->ut_user, UT_NAMESIZE); // Utilizziamo strndup
+            count++;
+        }
+        n = getutent();
+    }
+    endutent();
+
+    *user_count = count;
+    return users;
+}
+
 int main(int argc, char *argv[]) {
 
 	/*0=false, 1=true*/
@@ -443,15 +454,20 @@ int main(int argc, char *argv[]) {
 	
 
 	//funzione per gestire le opzioni passata negli argomenti & contare il numero di utenti
-	getOptions(argc, argv, &opts);
+	if(getOptions(argc, argv, &opts) != 0){
+		
+		fingerDIY(argc-1, argv+1, &opts);
+	}
+	else{
+
+		int userLoggedIn = 0;
+		char **new_argv = get_logged_in_users(&userLoggedIn);
+
+		fingerDIY(userLoggedIn, new_argv, &opts);
+	}
 	
 	//mostra opzioni selezionata
 	//printf("Options:\nl: %d\nm: %d\np: %d\ns: %d\n", opts.opt_l,opts.opt_m,opts.opt_p,opts.opt_s);
-
-
-	fingerDIY(argc, argv, &opts);
-
-
 
 	return 0;
 }
