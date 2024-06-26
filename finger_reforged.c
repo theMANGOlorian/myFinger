@@ -1,4 +1,4 @@
-/*finger.c reforge*/
+/*finger.c reforged*/
 
 //#include "fingerDIY.h"
 #include <stdio.h>
