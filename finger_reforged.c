@@ -1,6 +1,5 @@
-/*finger.c reforged*/
+/*finger.c reforge*/
 
-//#include "fingerDIY.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -11,30 +10,9 @@
 #include <stdbool.h>
 #include <sys/stat.h> 
 
+#include "fingerDIY.h"
+
 int headerShortPrint = 0; // 0 -> no stampata, 1 -> stampata
-
-struct options{
-	/*struttura per le opzione del comando finger 0->False 1->True */
-	_Bool opt_l;
-	_Bool opt_m;
-	_Bool opt_p;
-	_Bool opt_s;
-};
-
-struct UserInfo {
-	/*struttura per le informazioni degli utenti*/
-	char *utente;
-	char *directory;
-	char *shell;
-	char *nomeCompleto;
-	char *numeroStanza;
-	char *telefonoLavoro;
-	char *telefonoCasa;
-	char *tty;
-	char *lastLogin;
-	int idleOre;
-	int idleMin;
-};
 
 /*Print versione lunga (-l)*/
 void longFinger(struct UserInfo *user){
