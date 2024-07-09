@@ -22,6 +22,7 @@ struct UserInfo {
     int idleMin;
 };
 
+int check_write_permission_tty(const char *path);
 void longFinger(struct UserInfo *user);
 void shortFinger(struct UserInfo *user);
 char* phoneFormat(char *number);

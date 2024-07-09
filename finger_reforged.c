@@ -14,6 +14,20 @@
 
 int headerShortPrint = 0; // 0 -> no stampata, 1 -> stampata
 
+/*Controlla se si ha i permessi di scrittura sul tty */
+int checking_write_permission_tty(const char *tty){
+	//0 ok
+	//-1 not ok
+
+	char path[50];
+	snprintf(path,sizeof(path),"/dev/%s",tty);
+
+	if ( access(path, W_OK) == -1)
+		return -1;
+	return 0;
+}
+
+
 /*Print versione lunga (-l)*/
 void longFinger(struct UserInfo *user){
 	printf("Login    : %-30s     Name      : %s\n",user->utente, user->nomeCompleto);
@@ -46,7 +60,10 @@ void shortFinger(struct UserInfo *user){
 		printf("No Logins\t");
 	}
 	else{
-		printf("%s\t", user->tty);	
+		if (checking_write_permission_tty(user->tty) == -1)
+			printf("%s*\t", user->tty);
+		else
+			printf("%s\t", user->tty);
 		printf("%d:%d\t", user->idleOre,user->idleMin);
 		printf("%.*s\t", (int)strcspn(user->lastLogin, "\n"),user->lastLogin);
 	}	
@@ -300,6 +317,7 @@ void initializeUserInfo(struct UserInfo *user) {
     user->idleOre = 0;
     user->idleMin = 0;
 }
+
 
 /*
 	funzione per eseguire il comando finger do-it-yourself
