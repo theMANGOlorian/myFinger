@@ -10,9 +10,31 @@
 #include <stdbool.h>
 #include <sys/stat.h> 
 
-#include "fingerDIY.h"
+#include "finger.h"
 
 int headerShortPrint = 0; // 0 -> no stampata, 1 -> stampata
+
+
+struct options {
+    _Bool opt_l;
+    _Bool opt_m;
+    _Bool opt_p;
+    _Bool opt_s;
+};
+
+struct UserInfo {
+    char *utente;
+    char *directory;
+    char *shell;
+    char *nomeCompleto;
+    char *numeroStanza;
+    char *telefonoLavoro;
+    char *telefonoCasa;
+    char *tty;
+    char *lastLogin;
+    int idleOre;
+    int idleMin;
+};
 
 /*Controlla se si ha i permessi di scrittura sul tty */
 int checking_write_permission_tty(const char *tty){
@@ -318,7 +340,6 @@ void initializeUserInfo(struct UserInfo *user) {
     user->idleMin = 0;
 }
 
-
 /*
 	funzione per eseguire il comando finger do-it-yourself
 	prende come parametri la lunghezza del vettore degli argomenti, il vettore degli argomenti e la struct
@@ -388,7 +409,7 @@ void fingerDIY(int argc, char *argv[], struct options *opts){
 
 			//Recupera tutte le informazioni necessarie nel file utmp
 			struct utmp *ut;
-			time_t current_time = time(NULL); // Ottiene il tempo corrente in secondi
+			//time_t current_time = time(NULL); // Ottiene il tempo corrente in secondi
 			char aux[UT_NAMESIZE + 1]; // UT_NAMESIZE è definito in <utmp.h> come la lunghezza massima di un nome utente
 
 			setutent(); // Apre il file utmp per la scansione
@@ -404,9 +425,10 @@ void fingerDIY(int argc, char *argv[], struct options *opts){
 			        user->lastLogin = ctime(&ltime); // Converte il tempo dell'ultimo accesso in una stringa leggibile
 			        
 			        // Calcola il tempo di attivatà dell'utente
-			        time_t idle_seconds = current_time - ut->ut_time; // Calcola il tempo trascorso dall'ultimo accesso in secondi
+			        time_t idle_seconds = get_idle_time(ut->ut_line); // Calcola il tempo trascorso dall'ultimo accesso in secondi
 			        user->idleOre = idle_seconds / 3600; // Calcola il numero di ore di inattività
 			        user->idleMin = (idle_seconds % 3600) / 60; // Calcola il numero di minuti di inattività
+
 
 			        break; // Poiché abbiamo trovato il nome utente cercato, possiamo uscire dal ciclo
 			    }
@@ -496,4 +518,19 @@ int main(int argc, char *argv[]) {
 	//printf("Options:\nl: %d\nm: %d\np: %d\ns: %d\n", opts.opt_l,opts.opt_m,opts.opt_p,opts.opt_s);
 
 	return 0;
+}
+
+/* Calcola l'idle time  andando a leggere il file /dev/ttyX */
+time_t get_idle_time(const char *tty){
+	struct stat st;
+	char path[50];
+	snprintf(path,sizeof(path),"/dev/%s",tty);
+	if (stat(path,&st) == -1){
+		printf("[-]Error idle time\n");
+		return -1;
+	}
+	time_t current_time = time(NULL);
+	time_t idle_time = current_time - st.st_atime; // st_atime rappresenta il timestamp dell'ultimo accesso
+
+	return idle_time;
 }
