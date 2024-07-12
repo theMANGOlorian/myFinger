@@ -1,2 +1,2 @@
-# FingerFood
+# myFinger
 Finger - Linux Command
